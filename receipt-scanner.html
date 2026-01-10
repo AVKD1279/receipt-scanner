@@ -1,0 +1,755 @@
+var controller = new AbortController();
+                    var timeoutId = setTimeout(function() {
+                        controller.abort();
+                    }, 60000);<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt Scanner to Excel</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+        
+        .api-key-section {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .api-key-section h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        
+        .api-key-section input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: monospace;
+        }
+        
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #f0f2ff;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        .settings {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .settings input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .image-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #ddd;
+        }
+        
+        .image-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .image-item .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .image-item:hover .remove-btn {
+            opacity: 1;
+        }
+        
+        .image-item .status {
+            position: absolute;
+            bottom: 5px;
+            left: 5px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .status.completed {
+            background: #28a745;
+        }
+        
+        .status.error {
+            background: #dc3545;
+        }
+        
+        .status-message {
+            text-align: center;
+            padding: 15px;
+            background: #e3f2fd;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-weight: 600;
+            color: #1976d2;
+        }
+        
+        .results {
+            margin-top: 30px;
+        }
+        
+        .receipt-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid #dee2e6;
+        }
+        
+        .receipt-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+        
+        .receipt-total {
+            font-size: 24px;
+            font-weight: bold;
+            color: #28a745;
+        }
+        
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
+        .items-table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        .items-table td {
+            padding: 12px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .items-table tr:last-child td {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Receipt Scanner to Excel</h1>
+            <p>Upload receipt images and extract products, prices, and totals</p>
+        </div>
+        
+        <div class="card">
+            <div class="api-key-section" style="display: none;">
+                <h3>API Key</h3>
+                <input 
+                    type="password" 
+                    id="apiKey" 
+                    placeholder="sk-ant-..."
+                    autocomplete="off"
+                >
+            </div>
+            
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📤</div>
+                <h3>Click to upload or drag and drop</h3>
+                <p>PNG, JPG, JPEG (Multiple files supported)</p>
+                <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+            </div>
+            
+            <div class="settings">
+                <input type="checkbox" id="preprocessToggle" checked>
+                <label for="preprocessToggle">
+                    <strong>Image Enhancement</strong> (Black and White, Contrast, Sharpness)
+                </label>
+            </div>
+            
+            <div id="imageGrid" class="image-grid"></div>
+            
+            <div id="statusMessage" class="status-message" style="display: none;"></div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-primary" id="extractBtn" disabled>
+                    <span>Extract Text</span>
+                </button>
+                <button class="btn btn-success" id="downloadBtn" style="display: none;">
+                    <span>Download Excel</span>
+                </button>
+            </div>
+        </div>
+        
+        <div id="results" class="results"></div>
+    </div>
+
+    <script>
+        var images = [];
+        var extractedData = [];
+        var isProcessing = false;
+        
+        var uploadArea = document.getElementById('uploadArea');
+        var fileInput = document.getElementById('fileInput');
+        var imageGrid = document.getElementById('imageGrid');
+        var extractBtn = document.getElementById('extractBtn');
+        var downloadBtn = document.getElementById('downloadBtn');
+        var statusMessage = document.getElementById('statusMessage');
+        var resultsDiv = document.getElementById('results');
+        var apiKeyInput = document.getElementById('apiKey');
+        var preprocessToggle = document.getElementById('preprocessToggle');
+        
+        uploadArea.addEventListener('click', function() {
+            fileInput.click();
+        });
+        
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', function() {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+        
+        fileInput.addEventListener('change', function(e) {
+            handleFiles(e.target.files);
+        });
+        
+        function handleFiles(files) {
+            Array.from(files).forEach(function(file) {
+                var id = Date.now() + Math.random();
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    images.push({
+                        id: id,
+                        file: file,
+                        preview: e.target.result,
+                        name: file.name,
+                        status: 'pending'
+                    });
+                    renderImages();
+                    extractBtn.disabled = images.length === 0;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+        
+        function renderImages() {
+            imageGrid.innerHTML = images.map(function(img) {
+                var statusHtml = '';
+                if (img.status !== 'pending') {
+                    var statusText = img.status === 'completed' ? '✓' : '✗';
+                    statusHtml = '<div class="status ' + img.status + '">' + statusText + '</div>';
+                }
+                return '<div class="image-item" data-id="' + img.id + '">' +
+                    '<img src="' + img.preview + '" alt="' + img.name + '">' +
+                    '<button class="remove-btn" onclick="removeImage(' + img.id + ')">✕</button>' +
+                    statusHtml +
+                    '</div>';
+            }).join('');
+        }
+        
+        function removeImage(id) {
+            if (isProcessing) return;
+            images = images.filter(function(img) { return img.id !== id; });
+            extractedData = extractedData.filter(function(data) { return data.imageId !== id; });
+            renderImages();
+            extractBtn.disabled = images.length === 0;
+            if (extractedData.length === 0) {
+                downloadBtn.style.display = 'none';
+                resultsDiv.innerHTML = '';
+            }
+        }
+        
+        function preprocessImage(file) {
+            return new Promise(function(resolve, reject) {
+                var img = new Image();
+                var canvas = document.createElement('canvas');
+                var ctx = canvas.getContext('2d');
+                
+                var timeout = setTimeout(function() {
+                    reject(new Error('Timeout'));
+                }, 10000);
+                
+                img.onload = function() {
+                    clearTimeout(timeout);
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    
+                    var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    var data = imageData.data;
+                    
+                    for (var i = 0; i < data.length; i += 4) {
+                        var gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+                        var adjusted = (1.5 * (gray - 128) + 128 + 10 > 127) ? 255 : 0;
+                        data[i] = data[i + 1] = data[i + 2] = adjusted;
+                    }
+                    
+                    ctx.putImageData(imageData, 0, 0);
+                    canvas.toBlob(function(blob) {
+                        if (blob) {
+                            resolve(new File([blob], file.name, { type: 'image/png' }));
+                        } else {
+                            reject(new Error('Blob creation failed'));
+                        }
+                    }, 'image/png');
+                };
+                
+                img.onerror = function() {
+                    clearTimeout(timeout);
+                    reject(new Error('Image load failed'));
+                };
+                
+                img.src = URL.createObjectURL(file);
+            });
+        }
+        
+        function showStatus(message) {
+            statusMessage.textContent = message;
+            statusMessage.style.display = 'block';
+        }
+        
+        function hideStatus() {
+            statusMessage.style.display = 'none';
+        }
+        
+        extractBtn.addEventListener('click', function() {
+            processImages();
+        });
+        
+        async function processImages() {
+            var apiKey = '';
+            
+            isProcessing = true;
+            extractBtn.disabled = true;
+            extractedData = [];
+            resultsDiv.innerHTML = '';
+            downloadBtn.style.display = 'none';
+            
+            for (var i = 0; i < images.length; i++) {
+                var image = images[i];
+                showStatus('Processing ' + (i + 1) + '/' + images.length + ': ' + image.name + '...');
+                
+                try {
+                    var fileToProcess = image.file;
+                    
+                    if (preprocessToggle.checked) {
+                        showStatus('Enhancing ' + image.name + '...');
+                        try {
+                            fileToProcess = await preprocessImage(image.file);
+                        } catch (e) {
+                            console.warn('Preprocessing failed, using original', e);
+                        }
+                    }
+                    
+                    showStatus('Extracting text from ' + image.name + '...');
+                    
+                    var base64 = await new Promise(function(resolve, reject) {
+                        var reader = new FileReader();
+                        reader.onload = function() {
+                            resolve(reader.result.split(',')[1]);
+                        };
+                        reader.onerror = reject;
+                        reader.readAsDataURL(fileToProcess);
+                    });
+                    
+                    var controller = new AbortController();
+                    var timeoutId = setTimeout(function() {
+                        controller.abort();
+                    }, 60000);
+                    
+                    var response = await fetch('http://localhost:3000/api/extract', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        signal: controller.signal,
+                        body: JSON.stringify({
+                            model: 'claude-3-5-sonnet-20241022',
+                            max_tokens: 2000,
+                            messages: [{
+                                role: 'user',
+                                content: [
+                                    {
+                                        type: 'image',
+                                        source: {
+                                            type: 'base64',
+                                            media_type: 'image/png',
+                                            data: base64
+                                        }
+                                    },
+                                    {
+                                        type: 'text',
+                                        text: 'This is a receipt image. Extract all items/products and their prices. Return ONLY a JSON object with this exact structure: {"items": [{"product": "item name", "price": "price"}], "total": "total amount"}. If no items found, return {"items": [], "total": "0"}. No other text or explanation.'
+                                    }
+                                ]
+                            }]
+                        })
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    if (!response.ok) {
+                        var errorText = await response.text();
+                        throw new Error('API Error: ' + response.status + ' - ' + errorText);
+                    }
+                    
+                    var data = await response.json();
+                    
+                    if (!data || !data.content) {
+                        throw new Error('Invalid response from server');
+                    }
+                    
+                    var text = data.content.filter(function(c) {
+                        return c.type === 'text';
+                    }).map(function(c) {
+                        return c.text;
+                    }).join('\n');
+                    
+                    var receiptData;
+                    try {
+                        var clean = text.replace(/```json|```/g, '').trim();
+                        receiptData = JSON.parse(clean);
+                    } catch (e) {
+                        console.error('Parse error:', e, text);
+                        receiptData = { items: [], subtotal: '0', tax: '0', total: 'Parse error' };
+                    }
+                    
+                    extractedData.push({
+                        imageId: image.id,
+                        imageName: image.name,
+                        items: receiptData.items || [],
+                        subtotal: receiptData.subtotal || '0',
+                        tax: receiptData.tax || '0',
+                        total: receiptData.total || '0',
+                        timestamp: new Date().toLocaleString()
+                    });
+                    
+                    images[i].status = 'completed';
+                    
+                } catch (error) {
+                    console.error('Error:', error);
+                    extractedData.push({
+                        imageId: image.id,
+                        imageName: image.name,
+                        items: [],
+                        subtotal: '0',
+                        tax: '0',
+                        total: error.name === 'AbortError' ? 'Timeout' : 'Error',
+                        timestamp: new Date().toLocaleString()
+                    });
+                    images[i].status = 'error';
+                }
+                
+                renderImages();
+            }
+            
+            renderResults();
+            hideStatus();
+            isProcessing = false;
+            extractBtn.disabled = false;
+            downloadBtn.style.display = 'inline-flex';
+        }
+        
+        function renderResults() {
+            var resultsHTML = '<div class="card"><h2 style="margin-bottom: 20px;">Extracted Receipt Data</h2>';
+            
+            extractedData.forEach(function(receipt, index) {
+                resultsHTML += '<div class="receipt-card">' +
+                    '<div class="receipt-header">' +
+                    '<div>' +
+                    '<h3>Receipt #' + (index + 1) + '</h3>' +
+                    '<p style="color: #666; font-size: 14px;">' + receipt.imageName + '</p>' +
+                    '<p style="color: #999; font-size: 12px;">' + receipt.timestamp + '</p>' +
+                    '</div>' +
+                    '<div style="text-align: right;">' +
+                    '<div style="color: #666; font-size: 14px;">Subtotal</div>' +
+                    '<div style="font-size: 18px; font-weight: 600; color: #333;">' + receipt.subtotal + '</div>' +
+                    '<div style="color: #666; font-size: 14px; margin-top: 8px;">Tax</div>' +
+                    '<div style="font-size: 18px; font-weight: 600; color: #dc3545;">' + receipt.tax + '</div>' +
+                    '<div style="color: #666; font-size: 14px; margin-top: 8px;">Total</div>' +
+                    '<div class="receipt-total">' + receipt.total + '</div>' +
+                    '</div>' +
+                    '</div>';
+                
+                if (receipt.items.length > 0) {
+                    resultsHTML += '<table class="items-table"><thead><tr>' +
+                        '<th style="width: 50px;">#</th>' +
+                        '<th>Product</th>' +
+                        '<th style="width: 150px; text-align: right;">Price</th>' +
+                        '</tr></thead><tbody>';
+                    
+                    receipt.items.forEach(function(item, i) {
+                        resultsHTML += '<tr>' +
+                            '<td>' + (i + 1) + '</td>' +
+                            '<td>' + item.product + '</td>' +
+                            '<td style="text-align: right;">' + item.price + '</td>' +
+                            '</tr>';
+                    });
+                    
+                    resultsHTML += '</tbody></table>';
+                } else {
+                    resultsHTML += '<p style="color: #999; font-style: italic;">No items found</p>';
+                }
+                
+                resultsHTML += '</div>';
+            });
+            
+            resultsHTML += '</div>';
+            resultsDiv.innerHTML = resultsHTML;
+        }
+        
+        downloadBtn.addEventListener('click', function() {
+            var excelData = [];
+            
+            extractedData.forEach(function(receipt, receiptIndex) {
+                // Add receipt header
+                excelData.push({
+                    'A': 'Receipt #' + (receiptIndex + 1),
+                    'B': '',
+                    'C': ''
+                });
+                
+                excelData.push({
+                    'A': 'Image: ' + receipt.imageName,
+                    'B': '',
+                    'C': ''
+                });
+                
+                excelData.push({
+                    'A': 'Date: ' + receipt.timestamp,
+                    'B': '',
+                    'C': ''
+                });
+                
+                // Add empty row
+                excelData.push({
+                    'A': '',
+                    'B': '',
+                    'C': ''
+                });
+                
+                // Add products header
+                excelData.push({
+                    'A': 'Product',
+                    'B': 'Price',
+                    'C': ''
+                });
+                
+                // Add all items
+                if (receipt.items && receipt.items.length > 0) {
+                    receipt.items.forEach(function(item) {
+                        excelData.push({
+                            'A': item.product,
+                            'B': item.price,
+                            'C': ''
+                        });
+                    });
+                } else {
+                    excelData.push({
+                        'A': 'No items found',
+                        'B': '',
+                        'C': ''
+                    });
+                }
+                
+                // Add empty row
+                excelData.push({
+                    'A': '',
+                    'B': '',
+                    'C': ''
+                });
+                
+                // Calculate tax percentage
+                var subtotalNum = parseFloat(receipt.subtotal.replace(/[^0-9.]/g, '')) || 0;
+                var taxNum = parseFloat(receipt.tax.replace(/[^0-9.]/g, '')) || 0;
+                var taxPercentage = subtotalNum > 0 ? ((taxNum / subtotalNum) * 100).toFixed(2) + '%' : 'N/A';
+                
+                // Add summary
+                excelData.push({
+                    'A': 'Subtotal:',
+                    'B': receipt.subtotal,
+                    'C': ''
+                });
+                
+                excelData.push({
+                    'A': 'Tax:',
+                    'B': receipt.tax + ' (' + taxPercentage + ')',
+                    'C': ''
+                });
+                
+                excelData.push({
+                    'A': 'Total:',
+                    'B': receipt.total,
+                    'C': ''
+                });
+                
+                // Add 2 empty rows between receipts
+                excelData.push({
+                    'A': '',
+                    'B': '',
+                    'C': ''
+                });
+                
+                excelData.push({
+                    'A': '',
+                    'B': '',
+                    'C': ''
+                });
+            });
+            
+            var ws = XLSX.utils.json_to_sheet(excelData, {
+                header: ['A', 'B', 'C'],
+                skipHeader: true
+            });
+            
+            // Set column widths
+            ws['!cols'] = [
+                { wch: 30 },  // Product column
+                { wch: 15 },  // Price column
+                { wch: 10 }   // Extra column
+            ];
+            
+            var wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Receipt Data');
+            XLSX.writeFile(wb, 'receipt-data-' + Date.now() + '.xlsx');
+        });
+    </script>
+</body>
+</html>
