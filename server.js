@@ -127,7 +127,7 @@ app.use((req, res, next) => {
 
 app.use(express.static('.'));
 
-const GEMINI_API_KEY = 'AIzaSyDdozpFp7-kL9PE_cWHf1t293kIrsqvg30'; // Your Google API key
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // Your Google API key
 
 app.post('/api/extract', async (req, res) => {
     try {
