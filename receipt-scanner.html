@@ -494,8 +494,8 @@ var controller = new AbortController();
                         controller.abort();
                     }, 60000);
                     
-                    var response = await fetch('/api/extract', {                        method: 'POST',
-                        method: 'POST', 
+                    var response = await fetch('http://localhost:3000/api/extract', {
+                        method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
@@ -533,7 +533,8 @@ var controller = new AbortController();
                     var data = await response.json();
                     
                     if (!data || !data.content) {
-                        throw new Error('Invalid response from server');
+                        console.error('Invalid response structure:', data);
+                        throw new Error('Invalid response from server - AI could not process this image');
                     }
                     
                     var text = data.content.filter(function(c) {
@@ -547,8 +548,14 @@ var controller = new AbortController();
                         var clean = text.replace(/```json|```/g, '').trim();
                         receiptData = JSON.parse(clean);
                     } catch (e) {
-                        console.error('Parse error:', e, text);
-                        receiptData = { items: [], subtotal: '0', tax: '0', total: 'Parse error' };
+                        console.error('Parse error:', e, 'Raw text:', text);
+                        // Try to salvage something from the response
+                        receiptData = { 
+                            items: [{ product: 'Could not extract items - image quality too low or format not recognized', price: 'N/A' }], 
+                            subtotal: 'N/A', 
+                            tax: 'N/A', 
+                            total: 'N/A - Parse error'
+                        };
                     }
                     
                     extractedData.push({
