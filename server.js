@@ -140,7 +140,7 @@ app.post('/api/extract', async (req, res) => {
             contents: [{
                 parts: [
                     {
-                        text: 'This is a receipt image. Extract all items/products with their prices, tax information, and totals. Return ONLY a JSON object with this exact structure: {"items": [{"product": "item name", "price": "price"}], "subtotal": "amount before tax", "tax": "tax amount", "total": "total amount"}. If any field is not found, use "0" or "N/A". No other text or explanation.'
+                        text: 'Extract information from this receipt image. Find: 1) All product/item names and their prices, 2) Subtotal (if available), 3) Tax amount (if available), 4) Final total. Return a JSON object like: {"items": [{"product": "name", "price": "amount"}], "subtotal": "amount", "tax": "amount", "total": "amount"}. If you cannot find subtotal or tax, look for total only. If a field is missing, use "N/A". Be flexible with receipt formats - extract whatever information is visible. Return only valid JSON, no other text.'
                     },
                     {
                         inline_data: {
