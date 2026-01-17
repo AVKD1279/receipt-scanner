@@ -494,7 +494,7 @@ var controller = new AbortController();
                         controller.abort();
                     }, 60000);
                     
-                    var response = await fetch('http://localhost:3000/api/extract', {
+                    var response = await fetch('/api/extract', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
