@@ -6,10 +6,8 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-// Password protection
-const ACCESS_PASSWORD = 'bharat-bazaar21'; // Change this to your password
+const ACCESS_PASSWORD = 'bharat-bazaar21'; // Change this
 
-// Serve login page
 app.get('/', (req, res) => {
     res.send(`
 <!DOCTYPE html>
@@ -104,7 +102,6 @@ app.get('/', (req, res) => {
     `);
 });
 
-// Login endpoint
 app.post('/login', (req, res) => {
     const { password } = req.body;
     if (password === ACCESS_PASSWORD) {
@@ -125,43 +122,20 @@ app.post('/api/extract', async (req, res) => {
         const imageData = req.body.messages[0].content.find(c => c.type === 'image');
         const base64Image = imageData.source.data;
         
-        const geminiRequest = {
+        // STEP 1: First, just read all the text
+        const step1Request = {
             contents: [{
                 parts: [
                     {
-                        text: `Read this receipt image and extract ALL visible data in a structured format.
+                        text: `Read this receipt image very carefully. Extract ALL text you can see, line by line. 
 
-Extract:
-1. Every line item with: Item/Product Name, Quantity (if visible), Unit Price, Total Amount
-2. Subtotal (amount before tax)
-3. Tax amount
-4. Final Total
+Focus especially on:
+1. The table/list of items purchased
+2. Each row should have: item code, description, quantity, unit price, and total amount
+3. Read every single row - if there are 15 rows, list all 15
+4. Also find: subtotal, tax, and final total at the bottom
 
-Return JSON in this EXACT structure:
-{
-  "items": [
-    {
-      "description": "full item name/description",
-      "quantity": "number or N/A",
-      "unit_price": "price per unit",
-      "amount": "total for this item"
-    }
-  ],
-  "subtotal": "amount before tax",
-  "tax": "tax amount",
-  "total": "final total"
-}
-
-CRITICAL RULES:
-- Extract ONLY what you can actually read - do not make up data
-- Include ALL items you can see
-- If quantity is not shown, use "N/A"
-- Keep exact prices as shown
-- If a field is not visible, use "N/A"
-
-Return only valid JSON, nothing else.`
-
-
+Just list everything you see in plain text format, preserving the structure. Be thorough and complete.`
                     },
                     {
                         inline_data: {
@@ -173,33 +147,85 @@ Return only valid JSON, nothing else.`
             }]
         };
         
-        const response = await fetch(
+        const step1Response = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
             {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(geminiRequest)
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(step1Request)
             }
         );
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Gemini API Error:', errorText);
-            return res.status(response.status).json({ error: errorText });
+        if (!step1Response.ok) {
+            const errorText = await step1Response.text();
+            console.error('Step 1 Error:', errorText);
+            return res.status(step1Response.status).json({ error: errorText });
         }
 
-        const data = await response.json();
-        const geminiText = data.candidates[0].content.parts[0].text;
+        const step1Data = await step1Response.json();
+        const rawText = step1Data.candidates[0].content.parts[0].text;
         
-        console.log('AI Response:', geminiText);
+        console.log('Raw text extracted:', rawText.substring(0, 500));
+        
+        // STEP 2: Now organize that text into JSON structure
+        const step2Request = {
+            contents: [{
+                parts: [{
+                    text: `Here is text extracted from a receipt:
+
+${rawText}
+
+Now organize this into a structured JSON format:
+{
+  "items": [
+    {
+      "description": "complete item description",
+      "quantity": "quantity number",
+      "unit_price": "price per unit",
+      "amount": "total amount"
+    }
+  ],
+  "subtotal": "subtotal amount",
+  "tax": "tax amount",
+  "total": "final total"
+}
+
+Rules:
+- Include EVERY item from the list
+- Use the EXACT text for descriptions
+- Use the EXACT numbers for quantities and prices
+- Do NOT skip any items
+- Do NOT make up or modify data
+- Return ONLY valid JSON, no other text`
+                }]
+            }]
+        };
+        
+        const step2Response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(step2Request)
+            }
+        );
+
+        if (!step2Response.ok) {
+            const errorText = await step2Response.text();
+            console.error('Step 2 Error:', errorText);
+            return res.status(step2Response.status).json({ error: errorText });
+        }
+
+        const step2Data = await step2Response.json();
+        const structuredText = step2Data.candidates[0].content.parts[0].text;
+        
+        console.log('Structured JSON:', structuredText.substring(0, 500));
         
         const claudeFormatResponse = {
             content: [
                 {
                     type: 'text',
-                    text: geminiText
+                    text: structuredText
                 }
             ]
         };
@@ -217,6 +243,6 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log('========================================');
     console.log('Server running on port', PORT);
-    console.log('Using Gemini 2.5 Flash API');
+    console.log('Using 2-step extraction for accuracy');
     console.log('========================================');
 });
