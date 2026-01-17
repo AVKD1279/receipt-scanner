@@ -140,7 +140,7 @@ app.post('/api/extract', async (req, res) => {
             contents: [{
                 parts: [
                     {
-                        text: 'Extract information from this receipt image. Find: 1) All product/item names and their prices, 2) Subtotal (if available), 3) Tax amount (if available), 4) Final total. Return a JSON object like: {"items": [{"product": "name", "price": "amount"}], "subtotal": "amount", "tax": "amount", "total": "amount"}. If you cannot find subtotal or tax, look for total only. If a field is missing, use "N/A". Be flexible with receipt formats - extract whatever information is visible. Return only valid JSON, no other text.'
+                        text: 'Look at this receipt and extract ALL visible information. Find every product/item name with its price. Also find any money amounts labeled as: subtotal, tax, total, or similar. Be very flexible - receipts have different formats. Extract whatever you can see clearly. Return a JSON object: {"items": [{"product": "any item you see", "price": "its price"}], "subtotal": "if you see it", "tax": "if you see it", "total": "if you see it"}. If you cannot find a field, use "N/A". Do not be strict about format - just extract all readable text that looks like products and prices. Return only JSON, nothing else.'
                     },
                     {
                         inline_data: {
