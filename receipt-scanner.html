@@ -494,7 +494,7 @@ var controller = new AbortController();
                         controller.abort();
                     }, 60000);
                     
-                    var response = await fetch('/api/extract', {
+                    var response = await fetch('http://localhost:3000/api/extract', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -626,16 +626,20 @@ var controller = new AbortController();
                 
                 if (receipt.items.length > 0) {
                     resultsHTML += '<table class="items-table"><thead><tr>' +
-                        '<th style="width: 50px;">#</th>' +
-                        '<th>Product</th>' +
-                        '<th style="width: 150px; text-align: right;">Price</th>' +
+                        '<th>#</th>' +
+                        '<th>Description</th>' +
+                        '<th style="width: 80px; text-align: center;">Qty</th>' +
+                        '<th style="width: 100px; text-align: right;">Unit Price</th>' +
+                        '<th style="width: 100px; text-align: right;">Amount</th>' +
                         '</tr></thead><tbody>';
                     
                     receipt.items.forEach(function(item, i) {
                         resultsHTML += '<tr>' +
                             '<td>' + (i + 1) + '</td>' +
-                            '<td>' + item.product + '</td>' +
-                            '<td style="text-align: right;">' + item.price + '</td>' +
+                            '<td>' + (item.description || item.product || 'N/A') + '</td>' +
+                            '<td style="text-align: center;">' + (item.quantity || 'N/A') + '</td>' +
+                            '<td style="text-align: right;">' + (item.unit_price || item.price || 'N/A') + '</td>' +
+                            '<td style="text-align: right;">' + (item.amount || item.price || 'N/A') + '</td>' +
                             '</tr>';
                     });
                     
@@ -659,49 +663,63 @@ var controller = new AbortController();
                 excelData.push({
                     'A': 'Receipt #' + (receiptIndex + 1),
                     'B': '',
-                    'C': ''
+                    'C': '',
+                    'D': '',
+                    'E': ''
                 });
                 
                 excelData.push({
                     'A': 'Image: ' + receipt.imageName,
                     'B': '',
-                    'C': ''
+                    'C': '',
+                    'D': '',
+                    'E': ''
                 });
                 
                 excelData.push({
                     'A': 'Date: ' + receipt.timestamp,
                     'B': '',
-                    'C': ''
+                    'C': '',
+                    'D': '',
+                    'E': ''
                 });
                 
                 // Add empty row
                 excelData.push({
                     'A': '',
                     'B': '',
-                    'C': ''
+                    'C': '',
+                    'D': '',
+                    'E': ''
                 });
                 
-                // Add products header
+                // Add column headers
                 excelData.push({
-                    'A': 'Product',
-                    'B': 'Price',
-                    'C': ''
+                    'A': '#',
+                    'B': 'Description',
+                    'C': 'Qty',
+                    'D': 'Unit Price',
+                    'E': 'Amount'
                 });
                 
                 // Add all items
                 if (receipt.items && receipt.items.length > 0) {
-                    receipt.items.forEach(function(item) {
+                    receipt.items.forEach(function(item, idx) {
                         excelData.push({
-                            'A': item.product,
-                            'B': item.price,
-                            'C': ''
+                            'A': idx + 1,
+                            'B': item.description || item.product || 'N/A',
+                            'C': item.quantity || 'N/A',
+                            'D': item.unit_price || item.price || 'N/A',
+                            'E': item.amount || item.price || 'N/A'
                         });
                     });
                 } else {
                     excelData.push({
-                        'A': 'No items found',
-                        'B': '',
-                        'C': ''
+                        'A': '',
+                        'B': 'No items found',
+                        'C': '',
+                        'D': '',
+                        'E': ''
                     });
                 }
                 
@@ -709,57 +727,71 @@ var controller = new AbortController();
                 excelData.push({
                     'A': '',
                     'B': '',
-                    'C': ''
+                    'C': '',
+                    'D': '',
+                    'E': ''
                 });
                 
                 // Calculate tax percentage
-                var subtotalNum = parseFloat(receipt.subtotal.replace(/[^0-9.]/g, '')) || 0;
-                var taxNum = parseFloat(receipt.tax.replace(/[^0-9.]/g, '')) || 0;
+                var subtotalNum = parseFloat(String(receipt.subtotal).replace(/[^0-9.]/g, '')) || 0;
+                var taxNum = parseFloat(String(receipt.tax).replace(/[^0-9.]/g, '')) || 0;
                 var taxPercentage = subtotalNum > 0 ? ((taxNum / subtotalNum) * 100).toFixed(2) + '%' : 'N/A';
                 
                 // Add summary
                 excelData.push({
-                    'A': 'Subtotal:',
-                    'B': receipt.subtotal,
-                    'C': ''
+                    'A': '',
+                    'B': '',
+                    'C': '',
+                    'D': 'Subtotal:',
+                    'E': receipt.subtotal
                 });
                 
                 excelData.push({
-                    'A': 'Tax:',
-                    'B': receipt.tax + ' (' + taxPercentage + ')',
-                    'C': ''
+                    'A': '',
+                    'B': '',
+                    'C': '',
+                    'D': 'Tax:',
+                    'E': receipt.tax + ' (' + taxPercentage + ')'
                 });
                 
                 excelData.push({
-                    'A': 'Total:',
-                    'B': receipt.total,
-                    'C': ''
+                    'A': '',
+                    'B': '',
+                    'C': '',
+                    'D': 'Total:',
+                    'E': receipt.total
                 });
                 
                 // Add 2 empty rows between receipts
                 excelData.push({
                     'A': '',
                     'B': '',
-                    'C': ''
+                    'C': '',
+                    'D': '',
+                    'E': ''
                 });
                 
                 excelData.push({
                     'A': '',
                     'B': '',
-                    'C': ''
+                    'C': '',
+                    'D': '',
+                    'E': ''
                 });
             });
             
             var ws = XLSX.utils.json_to_sheet(excelData, {
-                header: ['A', 'B', 'C'],
+                header: ['A', 'B', 'C', 'D', 'E'],
                 skipHeader: true
             });
             
             // Set column widths
             ws['!cols'] = [
-                { wch: 30 },  // Product column
-                { wch: 15 },  // Price column
-                { wch: 10 }   // Extra column
+                { wch: 5 },   // # column
+                { wch: 50 },  // Description column
+                { wch: 8 },   // Qty column
+                { wch: 15 },  // Unit Price column
+                { wch: 15 }   // Amount column
             ];
             
             var wb = XLSX.utils.book_new();

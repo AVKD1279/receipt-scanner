@@ -129,27 +129,39 @@ app.post('/api/extract', async (req, res) => {
             contents: [{
                 parts: [
                     {
-                        text: `Read this receipt image carefully. Extract ALL text you can see.
+                        text: `Read this receipt image and extract ALL visible data in a structured format.
 
-CRITICAL RULES:
-1. Extract ONLY what you actually see - DO NOT make up or invent any data
-2. Extract EVERY line item, product, or charge you can read
-3. Find all numbers that represent prices, subtotals, tax, totals
-4. If text is unclear or unreadable, skip it - do not guess
-5. Return EXACTLY what is on the receipt, nothing more, nothing less
+Extract:
+1. Every line item with: Item/Product Name, Quantity (if visible), Unit Price, Total Amount
+2. Subtotal (amount before tax)
+3. Tax amount
+4. Final Total
 
-Return a JSON object with this structure:
+Return JSON in this EXACT structure:
 {
   "items": [
-    {"product": "exact text you see", "price": "exact price you see"}
+    {
+      "description": "full item name/description",
+      "quantity": "number or N/A",
+      "unit_price": "price per unit",
+      "amount": "total for this item"
+    }
   ],
-  "subtotal": "value if visible, otherwise null",
-  "tax": "value if visible, otherwise null", 
-  "total": "value if visible, otherwise null",
-  "raw_text": "any other important text you see"
+  "subtotal": "amount before tax",
+  "tax": "tax amount",
+  "total": "final total"
 }
 
-If you cannot read something clearly, do not include it. Only include data you can actually see and read on the receipt. Return only valid JSON.`
+CRITICAL RULES:
+- Extract ONLY what you can actually read - do not make up data
+- Include ALL items you can see
+- If quantity is not shown, use "N/A"
+- Keep exact prices as shown
+- If a field is not visible, use "N/A"
+
+Return only valid JSON, nothing else.`
+
+
                     },
                     {
                         inline_data: {
