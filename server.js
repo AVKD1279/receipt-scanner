@@ -7,7 +7,7 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
 // Password protection
-const ACCESS_PASSWORD = 'bharat-bazaar21'; // Change this to your desired password
+const ACCESS_PASSWORD = 'bharat-bazaar21'; // Change this to your password
 
 // Serve login page
 app.get('/', (req, res) => {
@@ -114,20 +114,9 @@ app.post('/login', (req, res) => {
     }
 });
 
-// Protect the main page
-app.use((req, res, next) => {
-    if (req.path === '/receipt-scanner.html' || req.path === '/api/extract') {
-        // In production, use proper session management
-        // For now, we'll allow access (client-side protection)
-        next();
-    } else {
-        next();
-    }
-});
-
 app.use(express.static('.'));
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // Your Google API key
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 app.post('/api/extract', async (req, res) => {
     try {
@@ -140,7 +129,27 @@ app.post('/api/extract', async (req, res) => {
             contents: [{
                 parts: [
                     {
-                        text: 'Look at this receipt and extract ALL visible information. Find every product/item name with its price. Also find any money amounts labeled as: subtotal, tax, total, or similar. Be very flexible - receipts have different formats. Extract whatever you can see clearly. Return a JSON object: {"items": [{"product": "any item you see", "price": "its price"}], "subtotal": "if you see it", "tax": "if you see it", "total": "if you see it"}. If you cannot find a field, use "N/A". Do not be strict about format - just extract all readable text that looks like products and prices. Return only JSON, nothing else.'
+                        text: `Read this receipt image carefully. Extract ALL text you can see.
+
+CRITICAL RULES:
+1. Extract ONLY what you actually see - DO NOT make up or invent any data
+2. Extract EVERY line item, product, or charge you can read
+3. Find all numbers that represent prices, subtotals, tax, totals
+4. If text is unclear or unreadable, skip it - do not guess
+5. Return EXACTLY what is on the receipt, nothing more, nothing less
+
+Return a JSON object with this structure:
+{
+  "items": [
+    {"product": "exact text you see", "price": "exact price you see"}
+  ],
+  "subtotal": "value if visible, otherwise null",
+  "tax": "value if visible, otherwise null", 
+  "total": "value if visible, otherwise null",
+  "raw_text": "any other important text you see"
+}
+
+If you cannot read something clearly, do not include it. Only include data you can actually see and read on the receipt. Return only valid JSON.`
                     },
                     {
                         inline_data: {
@@ -171,6 +180,9 @@ app.post('/api/extract', async (req, res) => {
 
         const data = await response.json();
         const geminiText = data.candidates[0].content.parts[0].text;
+        
+        console.log('AI Response:', geminiText);
+        
         const claudeFormatResponse = {
             content: [
                 {

@@ -494,7 +494,7 @@ var controller = new AbortController();
                         controller.abort();
                     }, 60000);
                     
-                    var response = await fetch('/api/extract', {
+                    var response = await fetch('http://localhost:3000/api/extract', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -547,14 +547,23 @@ var controller = new AbortController();
                     try {
                         var clean = text.replace(/```json|```/g, '').trim();
                         receiptData = JSON.parse(clean);
+                        
+                        // Clean up null or undefined values
+                        if (!receiptData.items || receiptData.items.length === 0) {
+                            receiptData.items = [{ product: 'No items extracted', price: 'N/A' }];
+                        }
+                        receiptData.subtotal = receiptData.subtotal || 'Not found';
+                        receiptData.tax = receiptData.tax || 'Not found';
+                        receiptData.total = receiptData.total || 'Not found';
+                        
                     } catch (e) {
                         console.error('Parse error:', e, 'Raw text:', text);
-                        // Try to salvage something from the response
+                        // Show the raw AI response if JSON parsing fails
                         receiptData = { 
-                            items: [{ product: 'Could not extract items - image quality too low or format not recognized', price: 'N/A' }], 
+                            items: [{ product: 'AI Response (not in JSON format)', price: text.substring(0, 100) }], 
                             subtotal: 'N/A', 
                             tax: 'N/A', 
-                            total: 'N/A - Parse error'
+                            total: 'N/A'
                         };
                     }
                     
